@@ -21,7 +21,7 @@ CRITICAL_PHRASES = [
     "better off dead",
     "suicidal",
     "can't go on",
-    "give up on life", "depressed"
+    "give up on life", "depressed", "die"
 ]
 
 POSITIVE_PHRASES = [
@@ -32,7 +32,7 @@ POSITIVE_PHRASES = [
     "calm",
     "relaxed",
     "grateful",
-    "content"
+    "content", "motivated"
 ]
 
 # =========================================================
@@ -54,11 +54,56 @@ def analyze_text(text: str):
 # =========================================================
 def show_emergency_resources(country):
     resources = {
-        "India": "📞 AASRA: 91-9820466726",
-        "USA": "📞 988 Suicide & Crisis Lifeline",
-        "UK": "📞 Samaritans: 116 123",
-        "Australia": "📞 Lifeline: 13 11 14"
+        "India": {
+            "name": "AASRA",
+            "phone": "91-9820466726",
+            "url": "https://www.aasra.info"
+        },
+        "USA": {
+            "name": "988 Suicide & Crisis Lifeline",
+            "phone": "988",
+            "url": "https://988lifeline.org"
+        },
+        "UK": {
+            "name": "Samaritans",
+            "phone": "116 123",
+            "url": "https://www.samaritans.org"
+        },
+        "Australia": {
+            "name": "Lifeline",
+            "phone": "13 11 14",
+            "url": "https://www.lifeline.org.au"
+        }
     }
+
+    data = resources.get(country)
+
+    if data:
+        st.markdown(
+            f"""
+            <div style="
+                padding:18px;
+                background:#1f2937;
+                border-radius:12px;
+                border-left:6px solid #ef4444;
+            ">
+            <h4>🚨 Emergency Support – {country}</h4>
+            <p><b>{data['name']}</b></p>
+            <p>📞 <b>{data['phone']}</b></p>
+            <p>🌐 <a href="{data['url']}" target="_blank" style="color:#60a5fa;">
+                Visit Official Website
+            </a></p>
+            <p style="margin-top:10px;">
+            If you are in immediate danger, please contact local emergency services.
+            </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.warning(
+            "🚨
+
 
     st.markdown(
         f"""
