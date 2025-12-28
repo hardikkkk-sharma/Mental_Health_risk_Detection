@@ -1,53 +1,32 @@
-
 import streamlit as st
+import joblib
+import os
 
 # =========================================================
 # Page Config
 # =========================================================
 st.set_page_config(
-    page_title="MindGuard AI",
+    page_title="Mental Health Risk Detection",
     page_icon="🧠",
     layout="centered"
 )
 
 # =========================================================
-# Rule-based Phrase Lists (DEFINE ONCE)
+# Title & Description
 # =========================================================
-CRITICAL_PHRASES = [
-    "want to disappear",
-    "kill myself",
-    "end my life",
-    "no reason to live",
-    "better off dead",
-    "suicidal",
-    "can't go on",
-    "give up on life", "depressed", "die"
-]
-
-POSITIVE_PHRASES = [
-    "happy",
-    "excited",
-    "confident",
-    "optimistic",
-    "calm",
-    "relaxed",
-    "grateful",
-    "content", "motivated"
-]
-
-# =========================================================
-# Analysis Logic
-# =========================================================
-def analyze_text(text: str):
-    text = text.lower()
-
-    if any(p in text for p in CRITICAL_PHRASES):
-        return "High", 0.95, "High"
-
-    if any(p in text for p in POSITIVE_PHRASES):
-        return "Low", 0.05, "High"
-
-    return "Moderate", 0.50, "Medium"
+st.markdown(
+    """
+    <h1 style="text-align:center;">🧠 Mental Health Risk Detection</h1>
+    <p style="text-align:center; color:#9ca3af;">
+    Analyze text to assess potential mental health risk levels.
+    </p>
+    <p style="text-align:center; font-style:italic; color:#6b7280;">
+    This tool is for educational purposes only.
+    </p>
+    <hr>
+    """,
+    unsafe_allow_html=True
+)
 
 # =========================================================
 # Emergency Resources
@@ -56,7 +35,7 @@ def show_emergency_resources(country):
     resources = {
         "India": {
             "name": "AASRA",
-            "phone": "91-9820466726",
+            "phone": "+91 9820466726",
             "url": "https://www.aasra.info"
         },
         "USA": {
@@ -102,69 +81,166 @@ def show_emergency_resources(country):
         )
     else:
         st.warning(
-            "🚨
-
-
-    st.markdown(
-        f"""
-        <div style="padding:15px; background:#1f2937; border-radius:10px;">
-        <b>Emergency Support ({country})</b><br>
-        {resources.get(country, "Contact local emergency services")}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+            "🚨 Please contact your local emergency services or a trusted mental health professional."
+        )
 
 # =========================================================
-# UI
+# Rule-Based Phrase Lists
 # =========================================================
-st.title("🧠 MindGuard AI")
-st.write("Analyze text to assess **potential mental health risk levels**.")
-st.caption("This tool is for educational purposes only.")
+CRITICAL_PHRASES = [
+    "want to disappear", "kill myself", "end my life",
+    "suicide", "better off dead", "can't go on",
+    "give up on life", "no reason to live", "depressed", "die", "kill"
+]
 
+POSITIVE_PHRASES = [
+    "happy", "excited", "confident", "optimistic",
+    "calm", "relaxed", "grateful", "content", "motivated"
+]
+
+# =========================================================
+# Load ML Model (Optional)
+# =========================================================
+@st.cache_resource
+def load_model():
+    try:
+        model = joblib.load("risk_model.pkl")
+        vectorizer = joblib.load("tfidf_vectorizer.pkl")
+        return model, vectorizer
+    except:
+        return None, None
+
+model, vectorizer = load_model()
+
+# =========================================================
+# Text Analysis Logic
+# =========================================================
+def analyze_text(text):
+    text = text.lower()
+
+    # 1️⃣ Critical rule-based override
+    if any(p in text for p in CRITICAL_PHRASES):
+        return "High", 0.95, "High"
+
+    # 2️⃣ Positive override
+    if any(p in text for p in POSITIVE_PHRASES):
+        return "Low", 0.05, "High"
+
+    # 3️⃣ ML fallback (if available)
+    if model and vectorizer:
+        X = vectorizer.transform([text])
+        proba = model.predict_proba(X)[0][0]
+
+        if proba >= 0.60:
+            return "High", proba, "Medium"
+        elif proba >= 0.45:
+            return "Moderate", proba, "Medium"
+        else:
+            return "Low", proba, "Low"
+
+    # 4️⃣ Safe default
+    return "Moderate", 0.50, "Low"
+
+# =========================================================
+# User Input
+# =========================================================
+st.markdown("### ✍️ Enter text")
 user_text = st.text_area(
-    "✍️ Enter text",
+    "",
     height=160,
     placeholder="Example: I feel overwhelmed and anxious lately..."
 )
 
 country = st.selectbox(
     "🌍 Select your country (for emergency resources)",
-    ["India", "USA", "UK", "Australia", "Other"]
+    ["India", "USA", "UK", "Australia"]
 )
 
+# =========================================================
+# Analyze Button
+# =========================================================
 if st.button("🔍 Analyze Risk"):
     if len(user_text.strip()) < 5:
-        st.warning("Please enter a longer message.")
+        st.warning("Please enter a longer message for better analysis.")
     else:
-        risk, prob, confidence = analyze_text(user_text)
+        risk, probability, confidence = analyze_text(user_text)
 
-        st.progress(prob)
+        # Progress bar
+        st.progress(probability)
 
+        # =================================================
+        # Output UI
+        # =================================================
         if risk == "High":
-            st.error("🔴 **High Risk Detected**")
+            st.markdown(
+                f"""
+                <div style="
+                    background:linear-gradient(135deg,#7f1d1d,#ef4444);
+                    padding:25px;
+                    border-radius:16px;
+                    color:white;
+                    text-align:center;
+                ">
+                <h2>🔴 High Risk Detected</h2>
+                <h3>Risk Probability: {probability:.2f}</h3>
+                <p>Model Confidence: {confidence}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
             show_emergency_resources(country)
 
         elif risk == "Moderate":
-            st.warning("🟠 **Moderate Risk Detected**")
+            st.markdown(
+                f"""
+                <div style="
+                    background:linear-gradient(135deg,#92400e,#facc15);
+                    padding:25px;
+                    border-radius:16px;
+                    color:black;
+                    text-align:center;
+                ">
+                <h2>🟠 Moderate Risk Detected</h2>
+                <h3>Risk Probability: {probability:.2f}</h3>
+                <p>Model Confidence: {confidence}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            st.info("💡 It may help to pause, reflect, or talk with someone you trust.")
 
         else:
-            st.success("🟢 **Low Risk Detected**")
+            st.markdown(
+                f"""
+                <div style="
+                    background:linear-gradient(135deg,#065f46,#10b981);
+                    padding:25px;
+                    border-radius:16px;
+                    color:white;
+                    text-align:center;
+                ">
+                <h2>🟢 Low / No Risk Detected</h2>
+                <h3>Risk Probability: {probability:.2f}</h3>
+                <p>Model Confidence: {confidence}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-        st.markdown(
-            f"""
-            <div style="padding:20px; background:#facc15; border-radius:15px; text-align:center;">
-            <h3>{risk} Risk</h3>
-            <h2>Risk Probability: {prob:.2f}</h2>
-            <p>Model Confidence: {confidence}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            st.success("🌱 You’re expressing positive emotional signals.")
 
-        st.info("💡 It might help to pause, reflect, or talk with someone you trust.")
-
-st.caption(
-    "⚠️ This tool does NOT provide medical advice. "
-    "If you or someone you know is struggling, seek professional help."
+# =========================================================
+# Footer Disclaimer
+# =========================================================
+st.markdown(
+    """
+    <hr>
+    <p style="color:#9ca3af; font-size:0.9em;">
+    ⚠️ This tool does <b>not</b> provide medical advice.
+    If you or someone you know is struggling, please seek professional help.
+    </p>
+    """,
+    unsafe_allow_html=True
 )
