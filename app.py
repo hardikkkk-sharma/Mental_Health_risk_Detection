@@ -21,7 +21,7 @@ CRITICAL_PHRASES = [
     "better off dead",
     "suicidal",
     "can't go on",
-    "give up on life"
+    "give up on life", "depressed"
 ]
 
 POSITIVE_PHRASES = [
