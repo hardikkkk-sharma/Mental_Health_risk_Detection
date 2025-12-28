@@ -1,210 +1,125 @@
-import streamlit as st
-import joblib
-import numpy as np
 
-# ==================================================
+import streamlit as st
+
+# =========================================================
 # Page Config
-# ==================================================
+# =========================================================
 st.set_page_config(
-    page_title="Mental Health Risk Detection",
+    page_title="MindGuard AI",
     page_icon="🧠",
     layout="centered"
 )
 
-# ==================================================
-# Emergency Resources (By Country)
-# ==================================================
-EMERGENCY_RESOURCES = {
-    "India": {
-        "number": "9152987821",
-        "text": "AASRA – 24x7 Suicide Prevention Helpline",
-        "url": "https://www.aasra.info/"
-    },
-    "United States": {
-        "number": "988",
-        "text": "988 Suicide & Crisis Lifeline",
-        "url": "https://988lifeline.org/"
-    },
-    "United Kingdom": {
-        "number": "116 123",
-        "text": "Samaritans",
-        "url": "https://www.samaritans.org/"
-    },
-    "Canada": {
-        "number": "1-833-456-4566",
-        "text": "Talk Suicide Canada",
-        "url": "https://talksuicide.ca/"
-    },
-    "Australia": {
-        "number": "13 11 14",
-        "text": "Lifeline Australia",
-        "url": "https://www.lifeline.org.au/"
-    },
-    "Other": {
-        "number": "Local emergency number",
-        "text": "Find local crisis support",
-        "url": "https://findahelpline.com/"
-    }
-}
+# =========================================================
+# Rule-based Phrase Lists (DEFINE ONCE)
+# =========================================================
+CRITICAL_PHRASES = [
+    "want to disappear",
+    "kill myself",
+    "end my life",
+    "no reason to live",
+    "better off dead",
+    "suicidal",
+    "can't go on",
+    "give up on life"
+]
 
+POSITIVE_PHRASES = [
+    "happy",
+    "excited",
+    "confident",
+    "optimistic",
+    "calm",
+    "relaxed",
+    "grateful",
+    "content"
+]
+
+# =========================================================
+# Analysis Logic
+# =========================================================
+def analyze_text(text: str):
+    text = text.lower()
+
+    if any(p in text for p in CRITICAL_PHRASES):
+        return "High", 0.95, "High"
+
+    if any(p in text for p in POSITIVE_PHRASES):
+        return "Low", 0.05, "High"
+
+    return "Moderate", 0.50, "Medium"
+
+# =========================================================
+# Emergency Resources
+# =========================================================
 def show_emergency_resources(country):
-    data = EMERGENCY_RESOURCES.get(country, EMERGENCY_RESOURCES["Other"])
+    resources = {
+        "India": "📞 AASRA: 91-9820466726",
+        "USA": "📞 988 Suicide & Crisis Lifeline",
+        "UK": "📞 Samaritans: 116 123",
+        "Australia": "📞 Lifeline: 13 11 14"
+    }
+
     st.markdown(
         f"""
-        <div style="padding:20px; background:#4b1f1f; border-radius:14px; color:white;">
-        <h3>🚨 Immediate Support Available</h3>
-        <p><b>{data['text']}</b></p>
-        <p>📞 <b>{data['number']}</b></p>
-        <p>🌐 <a href="{data['url']}" target="_blank" style="color:#ffd166;">
-        Visit website</a></p>
-        <p style="margin-top:10px;">
-        If you are in immediate danger, please contact local emergency services.
-        </p>
+        <div style="padding:15px; background:#1f2937; border-radius:10px;">
+        <b>Emergency Support ({country})</b><br>
+        {resources.get(country, "Contact local emergency services")}
         </div>
         """,
         unsafe_allow_html=True
     )
 
-# ==================================================
-# Load Model & Vectorizer
-# ==================================================
-@st.cache_resource
-def load_artifacts():
-    model = joblib.load("risk_model.pkl")
-    tfidf = joblib.load("tfidf_vectorizer.pkl")
-    return model, tfidf
+# =========================================================
+# UI
+# =========================================================
+st.title("🧠 MindGuard AI")
+st.write("Analyze text to assess **potential mental health risk levels**.")
+st.caption("This tool is for educational purposes only.")
 
-model, tfidf = load_artifacts()
-
-# ==================================================
-# Rule-based Phrase Lists
-# ==================================================
-CRITICAL_PHRASES = [
-    "want to disappear", "end it all", "kill myself",
-    "no reason to live", "better off dead",
-    "suicide", "end my life", "give up on life", "depressed"
-]
-
-POSITIVE_PHRASES = [
-    "happy", "excited", "confident", "optimistic",
-    "grateful", "content", "peaceful", "calm"
-]
-
-def contains_critical_phrase(text):
-    text = text.lower()
-    return any(p in text for p in CRITICAL_PHRASES)
-
-def contains_positive_phrase(text):
-    text = text.lower()
-    return any(p in text for p in POSITIVE_PHRASES)
-
-# ==================================================
-# UI Header
-# ==================================================
-st.title("🧠 Mental Health Risk Detection")
-st.write(
-    "Analyze text to assess **potential mental health risk levels**.\n\n"
-    "_This tool is for educational purposes only._"
-)
-
-st.divider()
-
-# ==================================================
-# Country Selector
-# ==================================================
-country = st.selectbox(
-    "🌍 Select your country (for emergency resources)",
-    list(EMERGENCY_RESOURCES.keys()),
-    index=0
-)
-
-# ==================================================
-# Input
-# ==================================================
-st.subheader("✍️ Enter text")
 user_text = st.text_area(
-    "",
+    "✍️ Enter text",
     height=160,
     placeholder="Example: I feel overwhelmed and anxious lately..."
 )
 
-# ==================================================
-# Analyze Button
-# ==================================================
+country = st.selectbox(
+    "🌍 Select your country (for emergency resources)",
+    ["India", "USA", "UK", "Australia", "Other"]
+)
+
 if st.button("🔍 Analyze Risk"):
-
     if len(user_text.strip()) < 5:
-        st.warning("Please enter a longer message for meaningful analysis.")
-        st.stop()
+        st.warning("Please enter a longer message.")
+    else:
+        risk, prob, confidence = analyze_text(user_text)
 
-    # --------------------------------------------------
-    # CRITICAL OVERRIDE (Highest Priority)
-    # --------------------------------------------------
-    if contains_critical_phrase(user_text):
-        st.error("🔴 **High Risk Detected**")
-        st.progress(1.0)
+        st.progress(prob)
 
-        show_emergency_resources(country)
+        if risk == "High":
+            st.error("🔴 **High Risk Detected**")
+            show_emergency_resources(country)
 
-        st.caption(
-            "⚠️ This tool does not provide medical advice. "
-            "Please seek professional help if needed."
-        )
-        st.stop()
+        elif risk == "Moderate":
+            st.warning("🟠 **Moderate Risk Detected**")
 
-    # --------------------------------------------------
-    # POSITIVE OVERRIDE
-    # --------------------------------------------------
-    if contains_positive_phrase(user_text):
-        st.success("🟢 **Low Risk Detected**")
-        st.progress(0.1)
+        else:
+            st.success("🟢 **Low Risk Detected**")
 
         st.markdown(
-            """
-            <div style="padding:18px; background:#143d2b; border-radius:12px; color:white;">
-            <h4>🌱 Positive emotional signals detected</h4>
-            <p>Your message reflects generally positive or healthy emotions.</p>
-            <b>Risk Probability:</b> Very Low<br>
-            <b>Model Confidence:</b> Rule-based
+            f"""
+            <div style="padding:20px; background:#facc15; border-radius:15px; text-align:center;">
+            <h3>{risk} Risk</h3>
+            <h2>Risk Probability: {prob:.2f}</h2>
+            <p>Model Confidence: {confidence}</p>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        st.caption(
-            "⚠️ This tool does not provide medical advice."
-        )
-        st.stop()
+        st.info("💡 It might help to pause, reflect, or talk with someone you trust.")
 
-    # --------------------------------------------------
-    # ML MODEL DECISION
-    # --------------------------------------------------
-    X = tfidf.transform([user_text])
-    proba_high = model.predict_proba(X)[0][0]
-
-    if proba_high >= 0.60:
-        st.error("🔴 **High Risk Detected**")
-        st.progress(1.0)
-
-        show_emergency_resources(country)
-
-    elif proba_high >= 0.45:
-        st.warning("🟠 **Moderate Risk Detected**")
-        st.progress(proba_high)
-
-        st.info(
-            "💡 It might help to pause, reflect, or talk things out with someone you trust."
-        )
-
-    else:
-        st.success("🟢 **Low / No Risk Detected**")
-        st.progress(proba_high)
-
-        st.markdown(
-            "🌱 Your message does not show strong distress signals."
-        )
-
-    st.caption(
-        "⚠️ This tool does **not** provide medical advice. "
-        "If you or someone you know is struggling, please seek professional help."
-    )
+st.caption(
+    "⚠️ This tool does NOT provide medical advice. "
+    "If you or someone you know is struggling, seek professional help."
+)
